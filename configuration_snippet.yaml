@@ -1,0 +1,180 @@
+
+
+sensor:
+  - platform: template
+    sensors:
+      where_is_gene:
+        friendly_name: "Where is Gene"
+        value_template: >-
+          {##Check if device not detected by any node ##}
+          {% if 
+          is_state("sensor.where_is_gene_familyroom", "not_home") and
+          is_state("sensor.where_is_gene_kitchen", "not_home") and 
+          is_state("sensor.where_is_gene_east_hallway", "not_home") and
+          is_state("sensor.where_is_gene_west_hallway", "not_home") and
+          is_state("sensor.where_is_gene_workshop", "not_home")
+          -%}
+          not_home      
+          {%- endif %}
+
+          {## check if a device is seen by a node ##}
+          {% if is_state("sensor.where_is_gene_kitchen", "kitchen") -%}
+          kitchen              
+            {% elif is_state("sensor.where_is_gene_east_hallway", "east_hallway") -%}
+            east_hallway
+              {% elif is_state("sensor.where_is_gene_west_hallway", "west_hallway") -%}
+              west_hallway
+                {% elif is_state("sensor.where_is_gene_workshop", "workshop") -%}
+                workshop
+                  {% elif is_state("sensor.where_is_gene_familyroom", "familyroom") -%}
+                  familyroom
+          {%- else %}
+          {## check if any node can detect a device but the device is not close enough  ##}
+            {% if
+            is_state("sensor.where_is_gene_familyroom", "home") or              
+            is_state("sensor.where_is_gene_kitchen", "home") or 
+            is_state("sensor.where_is_gene_west_hallway", "home") or
+            is_state("sensor.where_is_gene_east_hallway", "home") or
+            is_state("sensor.where_is_gene_workshop", "home")
+            -%}
+            home
+            {%- endif %}
+          {%- endif %}
+      where_is_martha:
+        friendly_name: "Where is Martha"
+        #           device_class: "presence"
+        value_template: >-
+          {##Check if device not detected by any node ##}
+          {% if 
+          is_state("sensor.where_is_martha_familyroom", "not_home") and
+          is_state("sensor.where_is_martha_kitchen", "not_home") and 
+          is_state("sensor.where_is_martha_east_hallway", "not_home") and
+          is_state("sensor.where_is_martha_west_hallway", "not_home") and
+          is_state("sensor.where_is_martha_workshop", "not_home")
+          -%}
+          not_home      
+          {%- endif %}
+
+          {## check if a device is seen by a node ##}
+          {% if is_state("sensor.where_is_martha_kitchen", "kitchen") -%}
+          kitchen              
+            {% elif is_state("sensor.where_is_martha_east_hallway", "east_hallway") -%}
+            east_hallway
+              {% elif is_state("sensor.where_is_martha_west_hallway", "west_hallway") -%}
+              west_hallway
+                {% elif is_state("sensor.where_is_martha_workshop", "workshop") -%}
+                workshop
+                  {% elif is_state("sensor.where_is_martha_familyroom", "familyroom") -%}
+                  familyroom
+          {%- else %}
+          {## check if any node can detect a device but the device is not close enough  ##}
+            {% if
+            is_state("sensor.where_is_martha_familyroom", "home") or              
+            is_state("sensor.where_is_martha_kitchen", "home") or 
+            is_state("sensor.where_is_martha_west_hallway", "home") or
+            is_state("sensor.where_is_martha_east_hallway", "home") or
+            is_state("sensor.where_is_martha_workshop", "home")
+            -%}
+            home
+            {%- endif %}
+          {%- endif %}
+
+
+
+input_number:
+  rssi_capture:
+    name: RSSI capture threshold
+    initial: -76
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+  rssi_release:
+    name: RSSI release threshold
+    initial: -85
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+
+  #specific setting for familyroom
+  rssi_capture_familyroom:
+    name: RSSI (familyroom) capture threshold
+    initial: -83
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+  rssi_release_familyroom:
+    name: RSSI (familyroom) release threshold
+    initial: -90
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+
+  #specific setting for kitchen
+  rssi_capture_kitchen:
+    name: RSSI (kitchen) capture threshold
+    initial: -83
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+  rssi_release_kitchen:
+    name: RSSI (kitchen) release threshold
+    initial: -90
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+
+  #specific setting for east_hallway
+  rssi_capture_east_hallway:
+    name: RSSI (east_hallway) capture threshold
+    initial: -83
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+  rssi_release_east_hallway:
+    name: RSSI (east_hallway) release threshold
+    initial: -90
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+
+  #specific setting for west_hallway
+  rssi_capture_west_hallway:
+    name: RSSI (west_hallway) capture threshold
+    initial: -83
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+  rssi_release_west_hallway:
+    name: RSSI (west_hallway) release threshold
+    initial: -90
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+    
+  #specific setting for workshop
+  rssi_capture_workshop:
+    name: RSSI (workshop) capture threshold
+    initial: -83
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+  rssi_release_workshop:
+    name: RSSI (workshop) release threshold
+    initial: -90
+    min: -100
+    max: -40
+    step: 1
+    unit_of_measurement: dBm
+
+
