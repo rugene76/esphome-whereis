@@ -1,5 +1,6 @@
 # esphome-whereis
-Presence detection using esphome for Home assistant ibeacon
+Presence detection implemented using esphome and leveraging the
+Home assistant ibeacon feature in the Android app
 
 I'll get around to documenting this project.
 
