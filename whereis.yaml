@@ -1,0 +1,203 @@
+substitutions:
+  roomname: familyroom
+  window_size_value: "3"
+  rssi_capture: id(harssi_capture).state
+  rssi_release: id(harssi_release).state
+
+esphome:
+  name: $roomname
+  
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+    static_ip: 10.0.0.30
+    gateway: 10.0.0.1
+    subnet: 255.255.255.0
+    dns1: 10.0.0.199
+    dns2: 10.0.0.1
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esphome-Web-$roomname"
+    password: !secret wifi_password
+
+captive_portal:
+
+#My phone ibeacon uuid is EB04F2EF-EEF3-4BAD-E84F-B6xxxxxxxxxxxx, otherwise id is 7416a3a1-00b6-4fe8-ad4b-f3exxxxxxxxxxxxx
+#Another beacon uuid is F658B3BB-9644-F380-764E-11Cxxxxxxxxxx, otherwise id is e3b9c841-c911-4e76-80f3-4496xxxxxxxxxxxxxxxx
+#   note that uuid's may be reversed endian format
+esp32_ble_tracker:
+  scan_parameters:
+    active: false  #whether to actively send packets 
+  on_ble_advertise:
+    - then:
+        - lambda: |-
+            if(x.get_ibeacon().has_value()) {
+                auto ibeacon = x.get_ibeacon().value();
+                if(strcmp(ibeacon.get_uuid().to_string().c_str(), "EB04F2EF-EEF3-4BAD-E84F-B600A1A3xxxx") == 0) {
+                  id(myphone_rssi).publish_state(x.get_rssi());
+                  if(id(myphone_rssi).state > $rssi_capture) {
+                      id(myphone_near).publish_state(1);
+                      id(ha_where_is_myphone).publish_state("$roomname");                    
+                  }
+                  if(id(myphone_rssi).state < $rssi_release) {
+                      id(myphone_near).publish_state(0);
+                      id(ha_where_is_myphone).publish_state("home");                                  
+                  }
+                  id(presence_myphone_timeout).execute();
+                }               
+                if(strcmp(ibeacon.get_uuid().to_string().c_str(), "F658B3BB-9644-F380-764E-11C941Cxxxx") == 0) {
+                  id(another_phone_rssi).publish_state(x.get_rssi());
+                  if(id(another_phone_rssi).state > $rssi_capture) {
+                      id(another_phone_near).publish_state(1);
+                      id(ha_where_is_another_phone).publish_state("$roomname");
+                  }
+                  if(id(another_phone_rssi).state < $rssi_release) {
+                      id(another_phone_near).publish_state(0); 
+                      id(ha_where_is_another_phone).publish_state("home");                     
+                  }
+                  id(presence_another_phone_timeout).execute();                  
+                }
+            }   
+
+sensor:
+  - platform: template
+    id: myphone_rssi
+    name: "$roomname myphone RSSI"
+    icon: "mdi:google-analytics"
+    update_interval: never
+    unit_of_measurement: "dBm"
+    filters:
+      - sliding_window_moving_average:
+          window_size: $window_size_value
+          send_every: 2
+    # filters:
+      # - exponential_moving_average:
+          # alpha: 0.3
+          # send_every: 5
+
+  - platform: template
+    id: another_phone_rssi
+    name: "$roomname another phone RSSI"
+    icon: "mdi:google-analytics"
+    update_interval: never
+    unit_of_measurement: "dBm"
+    filters:
+      - sliding_window_moving_average:
+          window_size: $window_size_value
+          send_every: 2
+
+#retrieve the rssi_capture value from HA (defined in configuration.yaml)
+  - platform: homeassistant
+    name: RSSI Capture threshold Familyroom
+    entity_id: input_number.rssi_capture_$roomname
+    id: harssi_capture
+    internal: true
+#retrieve the rssi_release value from HA   
+  - platform: homeassistant
+    name: RSSI Release threshold Familyroom
+    entity_id: input_number.rssi_release_$roomname
+    id: harssi_release
+    internal: true
+
+  - platform: wifi_signal
+    name: "$roomname WiFi Signal Sensor"
+    update_interval: 60s
+    
+
+binary_sensor:
+  - platform: template
+    id: myphone_near
+    name: "$roomname  myphone is near"
+    # on_press:
+      # - select.set:
+          # id: ha_myphone_location
+          # option: $roomname
+
+  - platform: template
+    id: another_phone_near
+    name: "$roomname  another phone is near"
+#    on_press:
+      # - select.set:
+          # id: ha_myphone_location
+          # option: $roomname
+                  
+
+script:
+  # Publish event after 30 seconds when no rssi received to clear presence state
+  # script timer gets reset everytime anything is detected
+  # Publish 0 if no rssi received, set rssi to 100, timer restarted when phone is detected
+  - id: presence_myphone_timeout
+    mode: restart
+    then:
+      - delay: 30s
+      - lambda: |-
+          {
+            id(myphone_near).publish_state(0);   
+            id(myphone_rssi).publish_state(-100.0);
+            id(ha_where_is_myphone).publish_state("not_home");
+            ESP_LOGD("Time out:", " myphone");
+          }
+      - script.execute: presence_myphone_timeout
+
+  # Publish event after 30 seconds when no rssi received to clear presence state
+  # script timer gets reset everytime anything is detected
+  # Publish 0 if no rssi received, set rssi to 100, timer restarted when phone is detected
+  - id: presence_another_phone_timeout
+    mode: restart
+    then:
+      - delay: 30s
+      - lambda: |-
+          {
+            id(another_phone_near).publish_state(0); 
+            id(another_phone_rssi).publish_state(-100.0); 
+            id(ha_where_is_another_phone).publish_state("not_home");
+            ESP_LOGD("Time out", " another_phone");
+          }            
+      - script.execute: presence_another_phone_timeout
+
+ 
+text_sensor:
+  - platform: template
+    name: Where is myphone ($roomname)
+#    entity_id: sensor.where_is_myphone
+    id: ha_where_is_myphone
+#    internal: true
+    
+  - platform: template
+    name: Where is another_phone ($roomname)
+#    entity_id: sensor.where_is_another_phone
+    id: ha_where_is_another_phone
+#    internal: true
+
+  - platform: wifi_info
+    ip_address:
+      name: $roomname IP Address
+    ssid:
+      name: $roomname Connected SSID
+    bssid:
+      name: $roomname Connected BSSID
+    mac_address:
+      name: $roomname Mac Wifi Address
+    scan_results:
+      name: $roomname Last Scan Results
+
+button:
+  - platform: restart
+    name: "$roomname Restart"
+    
+    
