@@ -1,5 +1,5 @@
 
-
+#adjust the naming convention to meet your needs.
 sensor:
   - platform: template
     sensors:
