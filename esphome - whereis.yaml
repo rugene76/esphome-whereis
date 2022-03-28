@@ -1,0 +1,204 @@
+substitutions:
+  roomname: familyroom
+  window_size_value: "3"
+  rssi_capture: id(harssi_capture).state
+  rssi_release: id(harssi_release).state
+  ibeacon1: EB04F2EF-EEF3-4BAD-E84F-B600A1A31674
+# note the usage of endian format - first and last bytes are reversed, e.g., powerpc vs intel architecture
+# reverse endian as reported by HA android app: 7416a3a1-00b6-4fe8-ad4b-f3eeeff204eb
+  ibeacon2: F658B3BB-9644-F380-764E-11C941C8B9E3
+# reverse endian as reported by HA android app: e3b9c841-c911-4e76-80f3-4496bbb358f6
+  name1_rssi: gene_rssi
+  name2_rssi: martha_rssi
+  name1_near: gene_near
+  name2_near: martha_near
+  presence_name1_timeout: presence_gene_timeout
+  presence_name2_timeout: presence_martha_timeout  
+  name1: gene
+  name2: martha
+
+esphome:
+  name: $roomname
+  
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+    static_ip: 10.0.0.30
+    gateway: 10.0.0.1
+    subnet: 255.255.255.0
+    dns1: 10.0.0.199
+    dns2: 10.0.0.1
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esphome-Web-$roomname"
+    password: !secret wifi_password
+
+captive_portal:
+
+esp32_ble_tracker:
+  scan_parameters:
+  #setting interval and window too high, i.e., 2s/1s, will cause ota updating to fail
+    active: false  #whether to actively send packets 
+  on_ble_advertise:
+    - then:
+        - lambda: |-
+            if(x.get_ibeacon().has_value()) {
+                auto ibeacon = x.get_ibeacon().value();
+                if(strcmp(ibeacon.get_uuid().to_string().c_str(), "$ibeacon1") == 0) {
+                  ESP_LOGD("ble_adv", "Found beacon1 - %s", ibeacon.get_uuid().to_string().c_str());
+                  id($name1_rssi).publish_state(x.get_rssi());
+                  if(id($name1_rssi).state > $rssi_capture) {
+                      id($name1_near).publish_state(1);
+                      id(ha_where_is_$name1).publish_state("$roomname");                    
+                  }
+                  if(id($name1_rssi).state < $rssi_release) {
+                      id($name1_near).publish_state(0);
+                      id(ha_where_is_$name1).publish_state("home");                                  
+                  }
+                  id($presence_name1_timeout).execute();
+                }               
+                if(strcmp(ibeacon.get_uuid().to_string().c_str(), "$ibeacon2") == 0) {
+                  ESP_LOGD("ble_adv", "Found beacon2 - %s", ibeacon.get_uuid().to_string().c_str());
+                  id($name2_rssi).publish_state(x.get_rssi());
+                  if(id($name2_rssi).state > $rssi_capture) {
+                      id($name2_near).publish_state(1);
+                      id(ha_where_is_$name2).publish_state("$roomname");
+                  }
+                  if(id($name2_rssi).state < $rssi_release) {
+                      id($name2_near).publish_state(0); 
+                      id(ha_where_is_$name2).publish_state("home");                     
+                  }
+                  id($presence_name2_timeout).execute();                  
+                }
+            }   
+
+sensor:
+  - platform: template
+    id: $name1_rssi
+    name: "$roomname $name1 RSSI"
+    icon: "mdi:google-analytics"
+    update_interval: never
+    unit_of_measurement: "dBm"
+    filters:
+      - sliding_window_moving_average:
+          window_size: $window_size_value
+          send_every: 2
+    # filters:
+      # - exponential_moving_average:
+          # alpha: 0.3
+          # send_every: 5
+
+  - platform: template
+    id: $name2_rssi
+    name: "$roomname $name2 RSSI"
+    icon: "mdi:google-analytics"
+    update_interval: never
+    unit_of_measurement: "dBm"
+    filters:
+      - sliding_window_moving_average:
+          window_size: $window_size_value
+          send_every: 2
+
+#retrieve the rssi_capture value from HA (defined in configuration.yaml)
+  - platform: homeassistant
+    name: RSSI Capture threshold $roomname
+    entity_id: input_number.rssi_capture_$roomname
+    id: harssi_capture
+    internal: true
+#retrieve the rssi_release value from HA   
+  - platform: homeassistant
+    name: RSSI Release threshold $roomname
+    entity_id: input_number.rssi_release_$roomname
+    id: harssi_release
+    internal: true
+
+  - platform: wifi_signal
+    name: "$roomname WiFi Signal Sensor"
+    update_interval: 60s
+    
+
+binary_sensor:
+  - platform: template
+    id: $name1_near
+    name: "$roomname  $name1 is near"
+
+  - platform: template
+    id: $name2_near
+    name: "$roomname  $name2 is near"
+
+script:
+  # Publish event after 30 seconds when no ibeacon response is received to set the presence state
+  # script timer gets reset everytime a desired ibeacon is detected
+  # Publish 0 if no rssi received, set rssi to 100, timer restarted when phone is detected
+  - id: $presence_name1_timeout
+    mode: restart
+    then:
+      - delay: 30s
+      - lambda: |-
+          {
+            id($name1_near).publish_state(0);   
+            id($name1_rssi).publish_state(-100.0);
+            id(ha_where_is_$name1).publish_state("not_home");
+            ESP_LOGD("Time out:", " $name1");
+          }
+      - script.execute: $presence_name1_timeout
+
+  # Publish event after 30 seconds when no ibeacon response is received to set the presence state
+  # script timer gets reset everytime a desired ibeacon is detected
+  # Publish 0 if no rssi received, set rssi to 100, timer restarted when phone is detected
+  - id: $presence_name2_timeout
+    mode: restart
+    then:
+      - delay: 30s
+      - lambda: |-
+          {
+            id($name2_near).publish_state(0); 
+            id($name2_rssi).publish_state(-100.0); 
+            id(ha_where_is_$name2).publish_state("not_home");
+            ESP_LOGD("Time out", " $name2");
+          }            
+      - script.execute: $presence_name2_timeout
+
+ 
+text_sensor:
+  - platform: template
+    name: Where is $name1 ($roomname)
+    id: ha_where_is_$name1
+    
+  - platform: template
+    name: Where is $name2 ($roomname)
+    id: ha_where_is_$name2
+
+  - platform: wifi_info
+    ip_address:
+      name: $roomname IP Address
+    ssid:
+      name: $roomname Connected SSID
+    bssid:
+      name: $roomname Connected BSSID
+    mac_address:
+      name: $roomname Mac Wifi Address
+    scan_results:
+      name: $roomname Last Scan Results
+
+button:
+  - platform: restart
+    name: "$roomname Restart"
+    
+    
