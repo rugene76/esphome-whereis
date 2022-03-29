@@ -3,11 +3,14 @@ substitutions:
   window_size_value: "3"
   rssi_capture: id(harssi_capture).state
   rssi_release: id(harssi_release).state
-  ibeacon1: EB04F2EF-EEF3-4BAD-E84F-B600A1A31674
+# replace with your ibeacon uuid
 # note the usage of endian format - first and last bytes are reversed, e.g., powerpc vs intel architecture
-# reverse endian as reported by HA android app: 7416a3a1-00b6-4fe8-ad4b-f3eeeff204eb
-  ibeacon2: F658B3BB-9644-F380-764E-11C941C8B9E3
-# reverse endian as reported by HA android app: e3b9c841-c911-4e76-80f3-4496bbb358f6
+# reverse endian as reported by HA android app: 7416a3a1-00b6-4fe8-ad4b-f3eeeff21234
+  ibeacon1: 3412F2EF-EEF3-4BAD-E84F-B600A1A31674
+# replace with your ibeacon uuid
+# reverse endian as reported by HA android app: e3b9c841-c911-4e76-80f3-4496bbb31234
+  ibeacon2: 3412B3BB-9644-F380-764E-11C941C8B9E3
+
   name1_rssi: gene_rssi
   name2_rssi: martha_rssi
   name1_near: gene_near
@@ -37,6 +40,7 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+# replace with your wifi values
   manual_ip:
     static_ip: 10.0.0.30
     gateway: 10.0.0.1
