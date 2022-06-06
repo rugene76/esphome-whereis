@@ -37,7 +37,7 @@ To install:
 You should see your ibeacon device (Where is John) in one of three possible states:
 1) not_home; this means the device is not detected at all
 2) home; this means the device is detected but the signal has not reached the capture threshold
-3) $roomname; e.g., "familyroom", this means the device has surpassed the rssi capture threhold
+3) $roomname; e.g., "familyroom", this means the device has surpassed the rssi capture threshold
 
 In home assistant, use the input_number entities to get acceptable device detection by adjusting the rssi thresholds.
 
