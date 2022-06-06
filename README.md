@@ -8,7 +8,7 @@ Note, the coding is brute force but it works good enough. Improvements to make t
 For now, 
 This code provides presence detection using the home assistant app
 as a ble beacon. I intend that the code be inserted into other esphome projects. The project is similar in function to the 
-excellent esppresence project but allows esphome compatibility.
+excellent espresence project but allows esphome compatibility.
 
 To install: 
 1) In the homeassistant android app go to "Companion App"
